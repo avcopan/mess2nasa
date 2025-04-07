@@ -205,7 +205,7 @@ packages:
 - pypi: .
   name: mess2nasa
   version: 0.1.0
-  sha256: 6c9469d5784a65548438e318e6bdc02440ef09493ae13c22d56b15e861217a48
+  sha256: 9ab283ec6d79ea1fcc5fccfdc95f72a46459b372e9a4ea5e639036c698b84ef5
   requires_python: '>=3.11'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.5-h2d0b736_3.conda
