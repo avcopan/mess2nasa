@@ -1,0 +1,27 @@
+THERMO
+
+
+! vib model: harm
+! tors model: 1dhrfa
+! sym model: HCO_model
+! sort freqs level: RUwb97xd/def2-svp
+! sort sp    level: RUwb97xd/def2-svp
+! sort G(700.0 K) minimum
+! energy level:
+!     1.000 x RUccsd(t)-f12-ri/cc-pvdz-f12//RUb2plypd3/def2-tzvp
+! tors level: RUwb97xd/def2-svp//RUwb97xd/def2-svp
+! CBH reference scheme: basic
+
+
+
+! Hf(0 K) = 86.24, ! Hf(298 K) = 82.87 kcal/mol
+C5H7(487)z              C   5H   7          G     200.0    3000.0  1000.0      1
+ 5.41473285E+00 3.00382732E-02-1.45582221E-05 3.43331023E-09-3.19461513E-13    2
+ 3.84961033E+04 1.63206359E+00 8.03992414E+00-9.18475482E-03 1.04387033E-04    3
+-1.30991687E-07 5.17581175E-11 3.90247412E+04-4.96277724E+00                   4
+
+
+
+
+END
+
