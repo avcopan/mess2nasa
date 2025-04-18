@@ -1,5 +1,6 @@
 """Formula utilities."""
 
+from collections import defaultdict
 from typing import TypeAlias
 
 import pyparsing as pp
@@ -13,22 +14,23 @@ Formula: TypeAlias = dict[str, int]
 FormulaData: TypeAlias = Formula | str
 
 
-def normalize_input(fml_inp: FormulaData) -> Formula:
+def normalize_input(fml: FormulaData) -> Formula:
     """Normalize formula input, which could be given as a string.
 
     :param fml_inp: Formula input
     :return: Formula
     """
-    fml = (
-        dict(FORMULA.parse_string(fml_inp).as_list())
-        if isinstance(fml_inp, str)
-        else fml_inp
-    )
-    fml = {str.title(k): int(v) for k, v in fml.items() if v}
+    if isinstance(fml, str):
+        fml_lst: list[tuple[str, int]] = FORMULA.parse_string(fml).as_list()
+        fml = defaultdict(int)
+        for sym, count in fml_lst:
+            fml[sym.title()] += int(count)
+
+    fml = {k.title(): int(v) for k, v in fml.items() if v != 0}
     return fml
 
 
-def string(fml_inp: FormulaData, upper: bool=False) -> str:
+def string(fml_inp: FormulaData, upper: bool = False) -> str:
     """Convert formula input to string.
 
     :param fml_inp: Formula input
