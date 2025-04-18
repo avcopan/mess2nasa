@@ -1,0 +1,6 @@
+formula: NH2NO
+Hf: 76.95
+Tf: 298
+energy_unit: kJ
+mess_input: pf.inp
+nasa_output: fit.nasa
