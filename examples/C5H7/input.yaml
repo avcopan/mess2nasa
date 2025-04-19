@@ -1,0 +1,6 @@
+formula: C5H7
+Hf: 86.239
+Tf: 0
+energy_unit: kcal
+mess_input: pf.inp
+nasa_output: fit.nasa

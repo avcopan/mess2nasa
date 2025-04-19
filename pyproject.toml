@@ -9,6 +9,9 @@ version = "0.1.0"
 build-backend = "hatchling.build"
 requires = ["hatchling"]
 
+[project.scripts]
+mess2nasa = "mess2nasa.cli:main"
+
 [tool.pixi.project]
 channels = ["conda-forge", "auto-mech"]
 platforms = ["linux-64"]
