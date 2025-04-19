@@ -30,13 +30,14 @@ def normalize_input(fml: FormulaData) -> Formula:
     return fml
 
 
-def string(fml_inp: FormulaData, upper: bool = False) -> str:
+def string(fml_inp: FormulaData, ones: bool = False, upper: bool = False) -> str:
     """Convert formula input to string.
 
     :param fml_inp: Formula input
+    :param ones: Whether to write 1 for single atoms
     :param upper: Whether to write all-uppercase symbols
     :return: Formula string
     """
     fml = normalize_input(fml_inp)
     fml = {k.upper(): v for k, v in fml.items()} if upper else fml
-    return "".join([f"{k}{v}" if v > 1 else k for k, v in fml.items()])
+    return "".join([f"{k}{v}" if v > 1 or ones else k for k, v in fml.items()])
