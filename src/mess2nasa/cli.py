@@ -17,7 +17,7 @@ class Input(BaseModel):
     Tf: Literal[0, 298] = 298
     energy_unit: str = "kJ"
     mess_input: str = "pf.inp"
-    nasa_output: str = "therm.nasa"
+    nasa_output: str = "fit.nasa"
 
 
 @click.command()
