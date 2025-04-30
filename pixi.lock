@@ -523,8 +523,24 @@ packages:
   timestamp: 1741918625732
 - pypi: src/autochem
   name: autochem
-  version: 2025.2.7
-  sha256: e4fa7540b16648a4a3882ff0eb1e73adcb9588b6939546cf0f5e7c4dfd416923
+  version: 2025.4.23
+  sha256: aba878ed287ca2564ad7a40a85a59718043bfc986012b34f675969c88df07d9b
+  requires_dist:
+  - ipython>=8.15
+  - ipywidgets
+  - jupyter
+  - more-itertools
+  - networkx>=3.3
+  - numpy>=1.26
+  - py3dmol
+  - pyparsing
+  - pyyaml
+  - qcelemental
+  - rdkit
+  - scipy>=1.12
+  - xarray>=2023.8
+  - altair>=5.5.0
+  - pint
   requires_python: '>=3.11'
   editable: true
 - conda: https://conda.anaconda.org/auto-mech/noarch/automech-toolbox-2024.7.18-h4616a5c_0.conda

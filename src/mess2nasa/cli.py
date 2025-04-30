@@ -2,11 +2,11 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 import click
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, BeforeValidator
 
 import autochem
 
@@ -14,7 +14,7 @@ import autochem
 class Input(BaseModel):
     formula: str
     Hf: float
-    Tf: Literal[0, 298] = 298
+    Tf: Annotated[Literal[0, 298], BeforeValidator(round)] = 298
     energy_unit: str = "kJ"
     mess_input: str = "pf.inp"
     nasa_output: str = "fit.nasa"
