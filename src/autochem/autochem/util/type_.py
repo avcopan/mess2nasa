@@ -10,6 +10,9 @@ import pydantic
 from numpy.typing import ArrayLike, NDArray
 from pydantic_core import core_schema
 
+from . import form
+from .form import Formula
+
 # Type variables
 T = TypeVar("T")
 S = TypeVar("S", bound="SubclassTyped")
@@ -111,15 +114,25 @@ class Scalable(pydantic.BaseModel, abc.ABC):
         """Scalar multiplication.
 
         :param c: Scalar value to multiply by
-        :return: Scaled function
+        :return: Scaled object
         """
         data = self.model_dump()
 
         if self._scalers is not None:
             for key, scaler in self._scalers.items():
                 data[key] = scaler(c, getattr(self, key))
+        else:
+            raise NotImplementedError("Scalar multiplication not implemented.")
 
         return self.model_validate(data)
+
+    def __truediv__(self, c: ArrayLike):
+        """Scalar division.
+
+        :param c: Scalar value to divide by
+        :return: Scaled object
+        """
+        return self.__mul__(1 / c)
 
     __rmul__ = __mul__
 
@@ -151,6 +164,14 @@ NDArray_ = Annotated[
     pydantic.PlainSerializer(lambda x: numpy.array(x).tolist()),
     pydantic.GetPydanticSchema(
         lambda _, handler: core_schema.with_default_schema(handler(list[float]))
+    ),
+]
+
+Formula_ = Annotated[
+    Formula,
+    pydantic.BeforeValidator(form.normalize_input),
+    pydantic.GetPydanticSchema(
+        lambda _, handler: core_schema.with_default_schema(handler(Formula))
     ),
 ]
 

@@ -1,36 +1,90 @@
 """Thermodynamic data."""
 
 import datetime
+from collections.abc import Sequence
+from typing import ClassVar, Literal
 
+import altair
+import numpy
 import pyparsing as pp
 
 from ..unit_ import UnitsData
 from ..util import FormulaData, chemkin, form, pac99
-from ..util.type_ import Frozen
+from ..util.type_ import Scalable, Scalers
 from . import data
 from .data import Nasa7ThermFit, Therm, Therm_
 
 
 # TODO: Make it so that the `therm` type can be indicated as `Species[Therm]` or
 # `Species[ThermFit]`, like with lists
-class Species(Frozen):
+class Species(Scalable):
     """A species with thermodynamic data."""
 
     name: str
     therm: Therm_
 
+    # Private attributes
+    _scalers: ClassVar[Scalers] = {"therm": (lambda c, x: c * x)}
 
-def from_chemkin_string(spc_str: str) -> Species:
+
+# Properties
+def temperature_minimum(spc: Species) -> float:
+    """Get the minimum temperature of the species.
+
+    :param spc: Species
+    :return: Minimum temperature
+    """
+    if isinstance(spc.therm, Nasa7ThermFit):
+        return spc.therm.T_min
+    raise NotImplementedError(
+        f"Species {spc.name} has no minimum temperature for {type(spc.therm)}"
+    )
+
+
+def temperature_middle(spc: Species) -> float:
+    """Get the middle temperature of the species.
+
+    :param spc: Species
+    :return: Middle temperature
+    """
+    if isinstance(spc.therm, Nasa7ThermFit):
+        return spc.therm.T_mid
+    raise NotImplementedError(
+        f"Species {spc.name} has no middle temperature for {type(spc.therm)}"
+    )
+
+
+def temperature_maximum(spc: Species) -> float:
+    """Get the maximum temperature of the species.
+
+    :param spc: Species
+    :return: Maximum temperature
+    """
+    if isinstance(spc.therm, Nasa7ThermFit):
+        return spc.therm.T_max
+    raise NotImplementedError(
+        f"Species {spc.name} has no maximum temperature for {type(spc.therm)}"
+    )
+
+
+# Conversions
+def from_chemkin_string(
+    spc_str: str,
+    T_mid: float | None = None,  # noqa: N803
+) -> Species:
     """Read species thermo from Chemkin string.
 
     :param spc_str: Chemkin species therm string
+    :param T_min: Default minimum temperature
+    :param T_mid: Default middle temperature
+    :param T_max: Default maximum temperature
     :return: Species thermo
     """
     # Parse string
     res = chemkin.parse_thermo(spc_str)
 
     # Extract thermo data
-    therm_fit = data.from_chemkin_parse_results(res)
+    therm_fit = data.from_chemkin_parse_results(res, T_mid=T_mid)
 
     return Species(name=res.name, therm=therm_fit)
 
@@ -125,8 +179,8 @@ def pac99_input_string(
     """
     assert isinstance(spc.therm, Therm)
     fml_str = form.string(spc.therm.formula, ones=True)
-    Hf298 = spc.therm.enthalpy_of_formation_room_temperature(units={"energy": "J"})
-    Ts = spc.therm.Ts
+    Hf298 = spc.therm.enthalpy_of_formation(units={"energy": "J"})
+    Ts = spc.therm.T
     # Enthalpy units are set to kJ by "KJOULE" keyword below
     dH298 = spc.therm.delta_enthalpy(T=298, method="nearest", units={"energy": "kJ"})
     dHs = spc.therm.delta_enthalpy_data(units={"energy": "kJ"})
@@ -157,6 +211,82 @@ def pac99_input_string(
     )
 
 
+def fit(
+    spc: Species,
+    T_min: float | None = None,  # noqa: N803
+    T_mid: float = 1000,  # noqa: N803
+    T_max: float | None = None,  # noqa: N803
+    type_: Literal["nasa7"] = "nasa7",
+) -> Species:
+    """Fit data to therm fit object.
+
+    :param spc: Species thermo with thermo data (not a fit)
+    :return: Species thermo with fitted data
+    """
+    # assert isinstance(spc.therm, Therm)
+    therm: Therm = spc.therm
+    T = therm.temperature_data()
+    Cp = therm.heat_capacity_data(const="P")
+    S = therm.entropy_data(P=1, units={"pressure": "bar"})
+    H = therm.enthalpy_data()
+
+    T_min = T_min or numpy.min(T)
+    T_max = T_max or numpy.max(T)
+
+    spc_fit = spc.model_copy()
+    spc_fit.therm = Nasa7ThermFit.fit(
+        T=T,
+        Cp=Cp,
+        S=S,
+        H=H,
+        formula=therm.formula,
+        charge=therm.charge,
+        T_min=T_min,
+        T_mid=T_mid,
+        T_max=T_max,
+    )
+    return spc_fit
+
+
+# Display
+def display(
+    spc: Species,
+    props: Sequence[Literal["Cv", "Cp", "S", "H", "dH"]] = ("Cp", "S", "H"),
+    others: Sequence[Species] = (),
+    others_labels: Sequence[str] = (),
+    T_range: tuple[float, float] = (200, 3000),  # noqa: N803
+    units: UnitsData | None = None,
+    label: str = "This work",
+    x_label: str = "𝑇",  # noqa: RUF001
+    y_labels: Sequence[str | None] | None = None,
+    horizontal: bool = False,
+) -> altair.Chart:
+    """Display as an Arrhenius plot, optionally comparing to other rates.
+
+    :param spc: Species thermo
+    :param props: Thermodynamic properties to display
+    :param others: Other reaction rates for comparison
+    :param others_labels: Labels for other reaction rates
+    :param t_range: Temperature range
+    :param p: Pressure
+    :param units: Units
+    :param x_label: X-axis label
+    :param y_label: Y-axis label
+    :return: Chart
+    """
+    return spc.therm.display(
+        others=[o.therm for o in others],
+        others_labels=others_labels,
+        T_range=T_range,
+        units=units,
+        label=label,
+        x_label=x_label,
+        y_labels=y_labels,
+        horizontal=horizontal,
+    )
+
+
+# Helpers
 def pac99_input_line(
     key: str | None = None,
     label1: str | None = None,
