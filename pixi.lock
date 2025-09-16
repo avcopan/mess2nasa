@@ -309,8 +309,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.1-hb9d3cd8_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstandard-0.23.0-py312h66e93f0_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb8e6e7a_2.conda
-      - pypi: .
-      - pypi: src/autochem
+      - pypi: ./
+      - pypi: ./src/autochem
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
   sha256: fe51de6107f9edc7aa4f786a70f4a883943bc9d39b3bb7307c04c41410990726
@@ -521,17 +521,17 @@ packages:
   - pkg:pypi/attrs?source=compressed-mapping
   size: 57181
   timestamp: 1741918625732
-- pypi: src/autochem
+- pypi: ./src/autochem
   name: autochem
-  version: 2025.4.23
-  sha256: aba878ed287ca2564ad7a40a85a59718043bfc986012b34f675969c88df07d9b
+  version: 2025.7.21
+  sha256: bce9967b9f21d46fda5efef68de1039df4f557dcf9147a55077019ad76a4ee83
   requires_dist:
+  - altair
   - ipython>=8.15
-  - ipywidgets
-  - jupyter
   - more-itertools
   - networkx>=3.3
   - numpy>=1.26
+  - pint
   - py3dmol
   - pyparsing
   - pyyaml
@@ -539,8 +539,6 @@ packages:
   - rdkit
   - scipy>=1.12
   - xarray>=2023.8
-  - altair>=5.5.0
-  - pint
   requires_python: '>=3.11'
   editable: true
 - conda: https://conda.anaconda.org/auto-mech/noarch/automech-toolbox-2024.7.18-h4616a5c_0.conda
@@ -2852,7 +2850,7 @@ packages:
   - pkg:pypi/mercantile?source=hash-mapping
   size: 19720
   timestamp: 1734075446811
-- pypi: .
+- pypi: ./
   name: mess2nasa
   version: 0.1.0
   sha256: d15bbb00167a006d40b46990d6c3fd77f69d1c23a5969b925910a436fb474b99
