@@ -1,4 +1,4 @@
-""" core graph functions
+"""core graph functions
 
 Data structure:
     gra = (atm_dct, bnd_dct)
@@ -105,9 +105,9 @@ def from_data(
     atm_keys = set(atm_dct.keys())
     bnd_keys = set(bnd_dct.keys())
 
-    assert all(
-        bnd_key <= atm_keys for bnd_key in bnd_keys
-    ), f"\natm_keys: {atm_keys}\nbnd_keys: {bnd_keys}"
+    assert all(bnd_key <= atm_keys for bnd_key in bnd_keys), (
+        f"\natm_keys: {atm_keys}\nbnd_keys: {bnd_keys}"
+    )
 
     return (atm_dct, bnd_dct)
 
@@ -454,7 +454,7 @@ def ts_graph_from_reactants_and_products(rct_gra: object, prd_gra: object) -> ob
 
 # # TS graph getters
 def ts_forming_bond_keys(tsg):
-    """Get the forming bonds from a TS graph
+    """Get the forming bonds from a TS graph.
 
     :param tsg: TS graph
     :type tsg: automol graph data structure
@@ -467,7 +467,7 @@ def ts_forming_bond_keys(tsg):
 
 
 def ts_breaking_bond_keys(tsg):
-    """Get the breaking bonds from a TS graph
+    """Get the breaking bonds from a TS graph.
 
     :param tsg: TS graph
     :type tsg: automol graph data structure
@@ -479,15 +479,32 @@ def ts_breaking_bond_keys(tsg):
     return frozenset(map(frozenset, brk_bnd_keys))
 
 
+def ts_unstable_bond_keys(tsg):
+    """Get the unstable bonds from a TS graph.
+
+    :param tsg: TS graph
+    :type tsg: automol graph data structure
+    :returns: The keys to breaking bonds
+    :rtype: frozenset[frozenset[{int, int}]]
+    """
+    ord_dct = bond_orders(tsg)
+    brk_bnd_keys = [k for k, o in ord_dct.items() if round(o % 1, 1) == 0.8]
+    return frozenset(map(frozenset, brk_bnd_keys))
+
+
 def ts_reacting_bond_keys(tsg):
-    """Get all of the bonds involved in the reaction
+    """Get all of the bonds involved in the reaction.
 
     :param tsg: TS graph
     :type tsg: automol graph data structure
     :returns: The keys to bonds involved in the reaction
     :rtype: frozenset[frozenset[{int, int}]]
     """
-    bnd_keys = ts_forming_bond_keys(tsg) | ts_breaking_bond_keys(tsg)
+    bnd_keys = (
+        ts_forming_bond_keys(tsg)
+        | ts_breaking_bond_keys(tsg)
+        | ts_unstable_bond_keys(tsg)
+    )
     return bnd_keys
 
 
@@ -669,6 +686,18 @@ def ts_reagents_graph_without_stereo(
         tsg = without_stereo(tsg)
 
     return tsg
+
+
+def clear_unstable_bond_orders(gra):
+    """Get a graph without unstable bond orders.
+
+    :param gra: Graph
+    :return: Graph
+    """
+    bnd_keys = ts_unstable_bond_keys(gra)
+    ord_dct = dict_.by_key(bond_orders(gra), bnd_keys)
+    ord_dct = dict_.transform_values(ord_dct, round)
+    return set_bond_orders(gra, ord_dct)
 
 
 # # setters
@@ -1910,6 +1939,36 @@ def standard_keys_for_sequence(gras):
     return gras, atm_key_dcts
 
 
+def nonoverlapping_keys_for_sequence(gras):
+    """Generate non-overlapping keys for graph sequence.
+
+    Minimizes the amount of relabeling.
+
+    :param gras: A sequence of molecular graphs
+    :returns: A sequence of relabelled molecular graphs, and a sequence of
+        relabelling dictionaries for each
+    """
+    key_dcts = []
+    gras_ = []
+
+    start = 0
+    for gra in gras:
+        keys = atom_keys(gra)
+        key_dct = {k: k for k in keys}
+        if min(keys) < start:
+            key_dct = {k: k + start for k in keys}
+            gra = relabel(gra, key_dct)
+        gras_.append(gra)
+        key_dcts.append(key_dct)
+        start = start + max(keys) + 1
+
+    gras = tuple(
+        relabel(gra, key_dct) for gra, key_dct in zip(gras, key_dcts, strict=True)
+    )
+    key_dcts = tuple(key_dcts)
+    return gras, key_dcts
+
+
 def zmatrix_conversion_info(gra) -> ZmatConv:
     """Get z-matrix conversion info based on the dummy atoms in the graph
 
@@ -2047,9 +2106,9 @@ def add_atoms(gra, symb_dct, imp_hyd_dct=None, ste_par_dct=None, check=True):
     ste_par_dct = {} if ste_par_dct is None else ste_par_dct
 
     if check:
-        assert (
-            not keys & atm_keys
-        ), f"{keys} and {atm_keys} have a non-empty intersection"
+        assert not keys & atm_keys, (
+            f"{keys} and {atm_keys} have a non-empty intersection"
+        )
 
     assert not keys & atm_keys
     assert set(imp_hyd_dct.keys()) <= keys
@@ -2097,9 +2156,9 @@ def add_bonds(gra, keys, ord_dct=None, ste_par_dct=None, check=True):
     ste_par_dct = dict_.transform_keys(ste_par_dct, frozenset)
 
     if check:
-        assert (
-            not keys & bnd_keys
-        ), f"{keys} and {bnd_keys} have a non-empty intersection"
+        assert not keys & bnd_keys, (
+            f"{keys} and {bnd_keys} have a non-empty intersection"
+        )
 
     assert set(ord_dct.keys()) <= keys
     assert set(ste_par_dct.keys()) <= keys
@@ -2205,7 +2264,7 @@ def add_atom_explicit_hydrogens(gra, exp_hyd_keys_dct):
     :rtype: automol graph data structure
     """
     assert set(exp_hyd_keys_dct.keys()) <= atom_keys(gra), (
-        f"{set(exp_hyd_keys_dct.keys())}" " !<= " f"{atom_keys(gra)}"
+        f"{set(exp_hyd_keys_dct.keys())} !<= {atom_keys(gra)}"
     )
     for atm_key, atm_exp_hyd_keys in exp_hyd_keys_dct.items():
         assert not set(atm_exp_hyd_keys) & atom_keys(gra)
@@ -2254,8 +2313,7 @@ def add_bonded_atom(
 
     bnd_atm_key = max(atm_keys) + 1 if bnd_atm_key is None else bnd_atm_key
     assert bnd_atm_key not in atm_keys, (
-        f"Cannot add atom with key {bnd_atm_key}.\n"
-        f"It is already in the graph:\n{gra}"
+        f"Cannot add atom with key {bnd_atm_key}.\nIt is already in the graph:\n{gra}"
     )
 
     symb_dct = {bnd_atm_key: symb}
@@ -2291,7 +2349,9 @@ def without_pi_bonds(gra):
         (
             0
             if round(v, 1) == 0
-            else round(v % 1, 1) if round(v % 1, 1) in (0.1, 0.9) else 1
+            else round(v % 1, 1)
+            if round(v % 1, 1) in (0.1, 0.9, 0.8)
+            else 1
         )
         for v in map(bnd_ord_dct.__getitem__, bnd_keys)
     ]
@@ -2300,7 +2360,7 @@ def without_pi_bonds(gra):
 
 
 def without_reacting_bonds(gra):
-    """Get a copy of this graph without reacting bonds
+    """Get a copy of this graph without reacting bonds.
 
     :param gra: molecular graph
     :type gra: automol graph data structure
@@ -2311,7 +2371,7 @@ def without_reacting_bonds(gra):
 
 
 def without_bonds_by_orders(gra, ords=(0,), skip_dummies=True):
-    """Remove bonds of certain orders from the graph
+    """Remove bonds of certain orders from the graph.
 
     :param gra: molecular graph
     :type gra: automol graph data structure
@@ -2496,7 +2556,7 @@ def union(gra1, gra2, check=True):
 
 
 def union_from_sequence(gras, check=True, shift_keys=False):
-    """Get the union of a sequence of graphs
+    """Get the union of a sequence of graphs.
 
     This is a disconnected graph consisting of the union of atom sets from each
     graph and the union of bond sets from each graph
@@ -3110,9 +3170,9 @@ def dummy_source_dict(
     src_dct = {}
     for dum_key in dum_keys:
         # 1. Find the linear atom, which should be the only neighbor
-        assert (
-            len(nkeys_dct[dum_key]) == 1
-        ), f"Dummy atoms should only be connected to one atom!\n{gra}"
+        assert len(nkeys_dct[dum_key]) == 1, (
+            f"Dummy atoms should only be connected to one atom!\n{gra}"
+        )
 
         (lin_key,) = nkeys_dct[dum_key]
         if not dir_:
@@ -3123,9 +3183,9 @@ def dummy_source_dict(
             lin_nkeys = tra_dct[lin_key] if lin_key in tra_dct else nkeys_dct[lin_key]
             dir_keys = sorted(set(lin_nkeys) - set(dum_keys))
 
-            assert (
-                dir_keys
-            ), f"Failed to identify direction atom for linear atom {lin_key}\n{gra}"
+            assert dir_keys, (
+                f"Failed to identify direction atom for linear atom {lin_key}\n{gra}"
+            )
             dir_key, *_ = dir_keys
             src_dct[dum_key] = (lin_key, dir_key)
 

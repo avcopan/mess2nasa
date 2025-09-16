@@ -1,4 +1,4 @@
-""" molecular graphs
+"""molecular graphs
 
 Import hierarchy:
     vmat        no dependencies
@@ -39,7 +39,6 @@ from ._2conv import (
     display_reaction,
     geometry,
     inchi,
-    ipywidget,
     perturb_geometry_planar_dihedrals,
     rdkit_molecule,
     rdkit_reaction,
@@ -123,6 +122,7 @@ from .base._00core import (
     bonds_neighbor_bond_keys,
     central_angle_keys,
     change_implicit_hydrogens,
+    clear_unstable_bond_orders,
     count,
     covalent_radii,
     dihedral_angle_keys,
@@ -151,6 +151,7 @@ from .base._00core import (
     mass_numbers,
     maximum_spin_multiplicity,
     nonbackbone_hydrogen_keys,
+    nonoverlapping_keys_for_sequence,
     possible_spin_multiplicities,
     relabel,
     remove_atoms,
@@ -326,6 +327,8 @@ from .base._06heur import (
 from .base._07geom import (
     geometries_parity_mismatches,
     geometry_correct_linear_vinyls,
+    geometry_correct_nonplanar_pi_bonds,
+    geometry_correct_nonplanar_ring_pi_bond,
     geometry_dihedrals_near_value,
     geometry_local_parity,
     geometry_rotate_bond,
@@ -411,6 +414,7 @@ from .base._func_group import (
     peroxy_groups,
     phenoxy_groups,
     phenyl_groups,
+    possible_radical_dissociation_sources,
     propyne_sites,
     radical_dissociation_products,
     radicals_of_type,
@@ -507,6 +511,7 @@ __all__ = [
     "relabel",
     "standard_keys",
     "standard_keys_for_sequence",
+    "nonoverlapping_keys_for_sequence",
     "zmatrix_conversion_info",
     "apply_zmatrix_conversion",
     "undo_zmatrix_conversion",
@@ -527,6 +532,7 @@ __all__ = [
     "ts_products_graph_without_stereo",
     "ts_reagents_graphs_without_stereo",
     "ts_reagents_graph_without_stereo",
+    "clear_unstable_bond_orders",
     "without_bonds_by_orders",
     "without_stereo",
     "with_explicit_stereo_hydrogens",
@@ -670,6 +676,8 @@ __all__ = [
     "geometry_local_parity",
     "geometries_parity_mismatches",
     # # corrections
+    "geometry_correct_nonplanar_ring_pi_bond",
+    "geometry_correct_nonplanar_pi_bonds",
     "geometry_correct_linear_vinyls",
     "geometry_pseudorotate_atom",
     "geometry_rotate_bond",
@@ -752,6 +760,7 @@ __all__ = [
     "c5h5o_groups",
     "furan_groups",
     "radical_dissociation_products",
+    "possible_radical_dissociation_sources",
     # # helper functions
     "bonds_of_type",
     "bonds_of_order",
@@ -784,7 +793,6 @@ __all__ = [
     "display",
     "display_reaction",
     "svg_string",
-    "ipywidget",
     "perturb_geometry_planar_dihedrals",
     # # species classification
     "SuperFunctionalGroup",

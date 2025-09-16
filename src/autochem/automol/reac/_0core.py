@@ -12,7 +12,6 @@ import dataclasses
 import itertools
 
 import yaml
-
 from phydat import ptab
 
 from .. import const, geom, graph, zmat
@@ -223,7 +222,9 @@ def from_forward_reverse(cla, ftsg, rtsg, rcts_keys, prds_keys) -> Reaction:
     :rtype: Reaction
     """
     # Determine the reaction mapping
-    rmap_dct = graph.isomorphism(ts.reverse(rtsg), ftsg, dummy=False, stereo=False)
+    rmap_dct = graph.isomorphism(
+        ts.reverse(rtsg), ftsg, dummy=False, stereo=False, unstable=False
+    )
 
     # Sort, so that the reagent orderings match the original input order
     rcts_keys = sorted(map(sorted, rcts_keys))
@@ -557,7 +558,7 @@ def set_products_keys(rxn: Reaction, prds_keys: list[list[int]]) -> Reaction:
 
 
 def set_reaction_class(rxn: Reaction, cla: str) -> Reaction:
-    """Set the reaction class
+    """Set the reaction class.
 
     :param rxn: The reaction object
     :type rxn: Reaction
@@ -571,6 +572,39 @@ def set_reaction_class(rxn: Reaction, cla: str) -> Reaction:
     return rxn
 
 
+def reset_conversion_info(rxn: Reaction) -> Reaction:
+    """Reset z-matrix conversion info.
+
+    For `geom` structures, this wipes out the conversion info.
+
+    For `zmat` structures, this replaces the conversion info with simple dummy atom
+    removal (no reordering).
+
+    :param rxn: Reaction
+    :return: Reaction
+    """
+    ts_zc = rct_zcs = prd_zcs = None
+
+    if structure_type(rxn) == "zmat":
+        ts_zc = zmat.conversion_info(ts_structure(rxn))
+        rct_zcs = list(map(zmat.conversion_info, reactant_structures(rxn)))
+        prd_zcs = list(map(zmat.conversion_info, product_structures(rxn)))
+
+    return from_data(
+        tsg=ts_graph(rxn),
+        rcts_keys=reactants_keys(rxn),
+        prds_keys=products_keys(rxn),
+        cla=class_(rxn),
+        struc_typ=structure_type(rxn),
+        ts_struc=ts_structure(rxn),
+        rct_strucs=reactant_structures(rxn),
+        prd_strucs=product_structures(rxn),
+        ts_zc=ts_zc,
+        rct_zcs=rct_zcs,
+        prd_zcs=prd_zcs,
+    )
+
+
 def set_structures(
     rxn: Reaction,
     ts_struc,
@@ -581,7 +615,7 @@ def set_structures(
     rct_zcs: list[ZmatConv] = None,
     prd_zcs: list[ZmatConv] = None,
 ) -> Reaction:
-    """Set the structures for the Reaction
+    """Set the structures for the Reaction.
 
     Structure type will be inferred if not passed in
 
@@ -731,7 +765,7 @@ def without_structures(rxn: Reaction, keep_info: bool = True) -> Reaction:
 
 
 # # other
-def relabel(rxn: Reaction, key_dct, struc: bool = False) -> Reaction:
+def relabel(rxn: Reaction, key_dct: dict[int, int], struc: bool = False) -> Reaction:
     """Relabel keys in the TS graph
 
     :param rxn: the reaction object
@@ -744,20 +778,21 @@ def relabel(rxn: Reaction, key_dct, struc: bool = False) -> Reaction:
     :rtype: Reaction
     """
     tsg = graph.relabel(ts_graph(rxn), key_dct)
-    rcts_keys = tuple(tuple(map(key_dct.__getitem__, ks)) for ks in reactants_keys(rxn))
-    prds_keys = tuple(tuple(map(key_dct.__getitem__, ks)) for ks in products_keys(rxn))
+    rcts_keys = tuple(tuple(map(key_dct.get, ks)) for ks in reactants_keys(rxn))
+    prds_keys = tuple(tuple(map(key_dct.get, ks)) for ks in products_keys(rxn))
 
     if not struc:
         rxn = without_structures(rxn)
 
-    rxn = set_ts_graph(rxn, tsg)
-    rxn = set_reactants_keys(rxn, rcts_keys)
-    rxn = set_products_keys(rxn, prds_keys)
+    rxn = copy.copy(rxn)
+    rxn.ts_graph = tsg
+    rxn.reactants_keys = rcts_keys
+    rxn.products_keys = prds_keys
 
+    ts_struc = ts_structure(rxn)
+    ts_zc = ts_conversion_info(rxn)
     if struc:
         struc_typ = structure_type(rxn)
-        ts_struc = ts_structure(rxn)
-        ts_zc = ts_conversion_info(rxn)
 
         if struc_typ == "zmat":
             raise NotImplementedError("Cannot relabel z-matrix structures")
@@ -768,9 +803,7 @@ def relabel(rxn: Reaction, key_dct, struc: bool = False) -> Reaction:
         if ts_zc is not None:
             ts_zc = zmat_conv.relabel(ts_zc, key_dct, "geom")
 
-        rxn = update_structures(rxn, ts_struc=ts_struc, ts_zc=ts_zc)
-
-    return rxn
+    return update_structures(rxn, ts_struc=ts_struc, ts_zc=ts_zc)
 
 
 def reverse_without_recalculating(rxn: Reaction, struc: bool = True) -> Reaction:
@@ -1212,6 +1245,63 @@ def without_dummy_atoms(rxn: Reaction) -> Reaction:
     return undo_zmatrix_conversion(rxn, keep_info=False)
 
 
+def remove_atoms(rxn: Reaction, keys: list[int], stereo: bool = False) -> Reaction:
+    """Remove atoms from the reaction object.
+
+    :param rxn: A reaction object
+    :type rxn: Reaction
+    :param keys: The keys to remove
+    :type keys: Sequence[int]
+    :return: The reaction object, with the atoms removed
+    :rtype: Reaction
+    """
+    # First, relabel, moving keys to end
+    rxn0 = copy.copy(rxn)
+    tsg0 = ts_graph(rxn0)
+    all_keys = [*sorted(graph.atom_keys(tsg0) - set(keys)), *keys]
+    key_dct = dict(map(reversed, enumerate(all_keys)))
+    keys = list(map(key_dct.get, keys))
+    rxn = relabel(rxn, key_dct, struc=True)
+
+    tsg = graph.remove_atoms(ts_graph(rxn), keys, stereo=stereo)
+    rcts_keys = [[k for k in ks if k not in keys] for ks in reactants_keys(rxn)]
+    prds_keys = [[k for k in ks if k not in keys] for ks in products_keys(rxn)]
+
+    if structure_type(rxn) == "zmat":
+        raise NotImplementedError("Cannot remove atoms from z-matrix structures")
+
+    ts_struc = ts_structure(rxn)
+    if ts_struc is not None:
+        ts_struc = geom.remove(ts_struc, keys)
+
+    rct_strucs = reactant_structures(rxn)
+    if rct_strucs is not None:
+        key_dcts = reactant_mappings(rxn, rev=True)
+        keys_lst = [[key_dct[k] for k in keys if k in key_dct] for key_dct in key_dcts]
+        rct_strucs = [
+            geom.remove(g, ks) for g, ks in zip(rct_strucs, keys_lst, strict=True)
+        ]
+
+    prd_strucs = product_structures(rxn)
+    if prd_strucs is not None:
+        key_dcts = product_mappings(rxn, rev=True)
+        keys_lst = [[key_dct[k] for k in keys if k in key_dct] for key_dct in key_dcts]
+        prd_strucs = [
+            geom.remove(g, ks) for g, ks in zip(prd_strucs, keys_lst, strict=True)
+        ]
+
+    return from_data(
+        tsg=tsg,
+        rcts_keys=rcts_keys,
+        prds_keys=prds_keys,
+        cla=class_(rxn),
+        ts_struc=ts_struc,
+        rct_strucs=rct_strucs,
+        prd_strucs=prd_strucs,
+        struc_typ=structure_type(rxn),
+    )
+
+
 def unique(rxns: list[Reaction]) -> list[Reaction]:
     """Get reactions with distinct TSs from a list with redundancies
 
@@ -1302,7 +1392,6 @@ def filter_viable_reactions(rxns: list[Reaction]) -> list[Reaction]:
         # Add more conditions here, as needed ...
 
         if not ((sep_rad and sing_spin) or hi_spin):
-
             rxns.append(rxn)
 
     return tuple(rxns)

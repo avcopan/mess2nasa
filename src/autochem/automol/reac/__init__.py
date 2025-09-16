@@ -1,5 +1,4 @@
-""" reaction-class specific functionality
-"""
+"""reaction-class specific functionality"""
 
 # base reaction class
 # tunneling treatments
@@ -31,6 +30,8 @@ from ._0core import (
     reactants_keys,
     reagent_mappings,
     relabel,
+    remove_atoms,
+    reset_conversion_info,
     reverse_without_recalculating,
     set_products_keys,
     set_reactants_keys,
@@ -39,6 +40,7 @@ from ._0core import (
     set_ts_graph,
     string,
     structure_type,
+    ts_conversion_info,
     ts_graph,
     ts_structure,
     undo_zmatrix_conversion,
@@ -143,12 +145,14 @@ __all__ = [
     "reactant_structures",
     "product_structures",
     "structure_type",
+    "ts_conversion_info",
     # # setters
     "set_ts_graph",
     "set_reactants_keys",
     "set_products_keys",
     "set_reaction_class",
     "set_structures",
+    "reset_conversion_info",
     "update_structures",
     # # others
     "reverse_without_recalculating",
@@ -166,6 +170,7 @@ __all__ = [
     "apply_zmatrix_conversion",
     "undo_zmatrix_conversion",
     "without_dummy_atoms",
+    "remove_atoms",
     "is_radical_radical",
     "unique",
     # stereo-specific reactions

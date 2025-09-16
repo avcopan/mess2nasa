@@ -7,7 +7,10 @@ from ._reaction import (
     chemkin_string,
     display,
     expand_lumped,
+    fit_high,
+    fit_plog,
     from_chemkin_string,
+    from_mess_channel_output,
 )
 from .blend import (
     BlendingFunction,
@@ -48,6 +51,10 @@ __all__ = [
     #  - Conversions
     "chemkin_string",
     "from_chemkin_string",
+    "from_mess_channel_output",
+    #  - Fitting
+    "fit_high",
+    "fit_plog",
     #  - Expansions
     "expand_lumped",
     #  - Display

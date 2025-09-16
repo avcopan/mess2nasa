@@ -2,10 +2,11 @@
 
 import abc
 import functools
-from collections.abc import Sequence
-from typing import ClassVar
+from collections.abc import Callable, Sequence
+from typing import ClassVar, TypeVar
 
-import numpy
+import numpy as np
+import pydantic
 from numpy.typing import NDArray
 
 from ..util.type_ import Frozen
@@ -17,17 +18,22 @@ from .system import UNITS, Units, UnitsData
 class UnitManager(Frozen, abc.ABC):
     _dimensions: ClassVar[dict[str, Dimension]]
 
-    def __init__(self, units: UnitsData | None = None, **kwargs):
+    def __init__(self, units: UnitsData | None = None, **kwargs: object) -> None:
         if units is not None:
             units0 = Units.model_validate(units)
-            for key, dim_ in self.__class__._dimensions.items():
+            for key, dim_ in self.__class__._dimensions.items():  # noqa: SLF001
                 val0 = kwargs.get(key)
                 kwargs[key] = dim.convert(units0, UNITS, dim_, val0, **kwargs)
 
         super().__init__(**kwargs)
 
 
-def manage_units(arg_dims: Sequence[Dimension], ret_dim: Dimension):
+F = TypeVar("F", bound=Callable)
+
+
+def manage_units(
+    arg_dims: Sequence[Dimension], ret_dim: Dimension | None = None
+) -> Callable[[F], F]:
     """Transform function into a unit managing function.
 
     TODO: Fix handling of args vs kwargs for input. This is currently broken when the
@@ -42,11 +48,14 @@ def manage_units(arg_dims: Sequence[Dimension], ret_dim: Dimension):
     :return: Function decorator
     """
 
-    def manage_units_(func0):
+    def manage_units_(func0: F) -> F:
         @functools.wraps(func0)
         def func(
-            self, *args, units: UnitsData | None = None, **kwargs
-        ) -> float | NDArray[numpy.float64]:
+            self: pydantic.BaseModel,
+            *args: object,
+            units: UnitsData | None = None,
+            **kwargs: object,
+        ) -> float | NDArray[np.float64]:
             # If no units were specified, return as-is
             if units is None:
                 return func0(self, *args, units=units, **kwargs)
@@ -64,8 +73,10 @@ def manage_units(arg_dims: Sequence[Dimension], ret_dim: Dimension):
             ret = func0(self, *args_, units=units, **kwargs)
 
             # Convert return
-            ret_ = dim.convert(UNITS, units0, ret_dim, ret, **self.model_dump())
-            return ret_
+            if ret_dim is not None:
+                ret = dim.convert(UNITS, units0, ret_dim, ret, **self.model_dump())
+
+            return ret
 
         return func
 

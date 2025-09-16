@@ -1,5 +1,6 @@
 """Functions for enumerating reactions."""
 
+import itertools
 from collections.abc import Sequence
 
 from rdkit import Chem
@@ -15,12 +16,16 @@ from ._00core import (
     without_stereo,
 )
 from ._02algo import connected_components, unique
-from ._12rdkit import from_graph as to_rdkit
+from ._03kekule import kekules
+from ._12rdkit import from_kekule_graph as to_rdkit
 from ._12rdkit import to_graph as from_rdkit
 
 A_ = "Cv4,Ov2"
 C_ = "Cv4"
 O_ = "Ov2"
+As = "CX4,OX2"
+Cs = "CX4"
+Os = "OX2"
 Ar = "Cv3,Ov1"
 Cr = "Cv3"
 Or = "Ov1"
@@ -35,20 +40,27 @@ class ReactionSmarts:
 
     abstraction = f"[C:1][H:2].[{Or}:3]>>[C:1].[H:2][*:3]"
     h_migration = f"([{Ar}:1].[{A_}:2][H:3])>>([H:3][{A_}:1].[{Ar}:2])"
-    h_migration_12 = f"[{Ar}:1][{A_}:2][H:3]>>[H:3][{A_}:1][{Ar}:2]"
+    h_migration_12 = f"[{Ar}:1][{As}:2][H:3]>>[H:3][{As}:1][{Ar}:2]"
     beta_scission = f"[{A_}:1]-!@[{A_}:2]-[{Ar}:3]>>([{Ar}:1]).([{A_}:2]=[{A_}:3])"
+    vinyl_beta_scission = (
+        f"[{A_}:1]-!@[{A_}:2]=[{Ar}:3]>>([{Ar}:1]).([{A_}:2]#[{A_}:3])"
+    )
     ring_beta_scission = f"[{A_}:1]-@[{A_}:2]-[{Ar}:3]>>([{Ar}:1].[{A_}:2]=[{A_}:3])"
+    vinyl_ring_beta_scission = (
+        f"[{A_}:1]-@[{A_}:2]=[{Ar}:3]>>([{Ar}:1].[{A_}:2]#[{A_}:3])"
+    )
     # Specific
     pi2_addition = f"[*:1]=[*:2].[{Or}:3]>>[*:1]-[*:2]-[*:3]"
     o2_addition = f"[{Ar}:1].[O:2]=[O:3]>>[*:1]-[*:2]-[*:3]"
     qooh_formation = (
-        f"([{C_}:1]-[O:2]-[{Or}:3].[{A_}:4][H:5])>>([{C_}:1][O:2][O:3][H:5].[{Ar}:4])"
+        f"([{C_}:1]-[O:2]-[{Or}:3].[{As}:4][H:5])>>([{C_}:1][O:2][O:3][H:5].[{Ar}:4])"
     )
     ho2_elimination = f"[H:5][C:1][C:2][O:3][{Or}:4]>>[C:1]=[C:2].[{Or}:3][O:4][H:5]"
     qooh_beta_scission = (
         f"[{Ar}:1]-[{A_}:2][O:3][O:4][H:5]>>([{Ar}:1]=[{A_}:2]).([O:3][O:4][H:5])"
     )
     qooh_ring_forming_scission = f"([{Cr}:1].[{O_}:2][O:3][H:4])>>[R:1][R:2].[O:3][H:4]"
+    qooh_instability = f"[{Cr}:1][O:2][O:3][H:4]>>[C:1]=[O:2].[O:3][H:4]"
 
 
 def reactions(smarts: str, gra: object, symeq: bool = False) -> list[object]:
@@ -74,14 +86,26 @@ def products(smarts: str, gra: object) -> list[object]:
     """
     assert gra == explicit(gra), f"Graph must be explicit\ngra = {gra}"
     assert gra == without_stereo(gra), f"Cannot handle stereochemistry\ngra = {gra}"
+    kgrs = kekules(gra)
+    return list(
+        itertools.chain.from_iterable(products_from_kekule(smarts, kgr) for kgr in kgrs)
+    )
 
+
+def products_from_kekule(smarts: str, kgr: object) -> list[object]:
+    """Enumerate products for a given SMARTS reaction template.
+
+    :param smarts: SMARTS pattern for the reaction
+    :param gra: Molecular graph representing the reactants
+    :returns: Products graphs
+    """
     # Form the reaction object
     rxn = AllChem.ReactionFromSmarts(smarts)
 
     # Form the reactant graphs
-    rct_gras = connected_components(gra)
+    rct_kgrs = connected_components(kgr)
     # (label=True) stores the current graph keys to the `molAtomMapNumber` property
-    rct_rdms = [to_rdkit(g, exp=True, label=True) for g in rct_gras]
+    rct_rdms = [to_rdkit(kgr, exp=True, label=True) for kgr in rct_kgrs]
 
     # Enumerate the products
     pos_dct = _template_map_number_to_reactant_position(rxn)
