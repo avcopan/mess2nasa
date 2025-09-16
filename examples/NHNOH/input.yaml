@@ -1,0 +1,6 @@
+formula: NHNOH
+Hf: 88.5
+Tf: 0
+energy_unit: kJ
+mess_input: pf.inp
+nasa_output: fit.nasa
